@@ -1,8 +1,13 @@
+import os
+
 import pytest
 
 from llm_cost.pricing import default_pricing, parse_pricing
 from llm_cost.report import build_report, compare_models
+from llm_cost.table import format_int, format_money, render_table
 from llm_cost.usage import load_usage
+
+README_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "README.md")
 
 
 def test_build_report_sorts_groups_by_key():
@@ -88,3 +93,34 @@ def test_compare_models_no_match_returns_empty():
     table = default_pricing()
     ranked = compare_models(table, input_tokens=1000, output_tokens=100, provider="no-such-provider")
     assert ranked == []
+
+
+def test_compare_matches_readme_example_byte_for_byte():
+    # Reproduces the exact block llm_cost.cli._cmd_compare prints for
+    # `llm-cost compare --input 10000 --output 1000 --provider anthropic`,
+    # checked against the README's console example for that command.
+    table = default_pricing()
+    ranked = compare_models(table, input_tokens=10000, output_tokens=1000, provider="anthropic")
+
+    intro = "%s in + %s out, 1 call, prices as of %s" % (
+        format_int(10000),
+        format_int(1000),
+        table.as_of,
+    )
+    headers = ("model", "provider", "$/1M in", "$/1M out", "cost", "vs cheapest")
+    rows = [
+        (
+            price.model,
+            price.provider,
+            "%.2f" % price.input,
+            "%.2f" % price.output,
+            format_money(cost.total_cost),
+            "%.1fx" % multiple,
+        )
+        for price, cost, multiple in ranked
+    ]
+    expected = "\n".join([intro, "", render_table(headers, rows)])
+
+    with open(README_PATH, encoding="utf-8") as handle:
+        readme = handle.read()
+    assert expected in readme
