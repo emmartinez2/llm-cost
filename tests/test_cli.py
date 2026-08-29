@@ -3,6 +3,8 @@ import json
 import pytest
 
 from llm_cost.cli import EXIT_BAD_INPUT, EXIT_OK, EXIT_UNKNOWN_MODEL, main
+from llm_cost.pricing import default_pricing
+from llm_cost.table import render_table
 
 
 def test_estimate_json_shape(capsys):
@@ -98,6 +100,33 @@ def test_models_json_shape(capsys):
     out = json.loads(capsys.readouterr().out)
     assert "claude-opus-5" in out["models"]
     assert out["source"] == "built-in"
+
+
+def test_models_table_output_matches_price_table(capsys):
+    code = main(["models"])
+    assert code == EXIT_OK
+    out = capsys.readouterr().out
+
+    table = default_pricing()
+    headers = ("model", "provider", "input", "output", "cached_input", "cache_write")
+    rows = [
+        (
+            name,
+            table.prices[name].provider,
+            "%.2f" % table.prices[name].input,
+            "%.2f" % table.prices[name].output,
+            "%.2f" % table.prices[name].cached_input,
+            "%.2f" % table.prices[name].cache_write,
+        )
+        for name in table.models()
+    ]
+    intro = "%d models, USD per 1M tokens, as of %s (source: %s)" % (
+        len(table),
+        table.as_of,
+        table.source,
+    )
+    expected = "\n".join([intro, "", render_table(headers, rows)]) + "\n"
+    assert out == expected
 
 
 def test_no_command_prints_help_and_exits_bad_input(capsys):
