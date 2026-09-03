@@ -68,11 +68,11 @@ The input is JSONL, one API call per line, in whatever shape your SDK logs:
 $ llm-cost report usage.jsonl --group-by model
 model             calls    input   cached  output     cost   $/call
 ----------------  -----  -------  -------  ------  -------  -------
-claude-opus-5         2   27,600  104,000   3,500  $0.3337  $0.1669
 claude-haiku-4-5      1  140,000        0   9,800  $0.1890  $0.1890
-gemini-2.5-flash      1   88,000        0   3,100  $0.0341  $0.0341
+claude-opus-5         2   27,600  104,000   3,500  $0.2800  $0.1400
+gemini-2.5-flash      1   88,000        0   3,080  $0.0341  $0.0341
 gpt-4o-mini           1    7,000   24,000     420  $0.0031  $0.0031
-TOTAL                 5  262,600  128,000  16,820  $0.5600
+TOTAL                 5  262,600  128,000  16,800  $0.5062         
 
 skipped 1 record(s) with no price: internal-router-v3
 ```
@@ -83,10 +83,10 @@ skipped 1 record(s) with no price: internal-router-v3
 $ llm-cost report usage.jsonl --group-by team
 team    calls    input   cached  output     cost   $/call
 ------  -----  -------  -------  ------  -------  -------
-agents      2   27,600  104,000   3,500  $0.3337  $0.1669
+agents      2   27,600  104,000   3,500  $0.2800  $0.1400
+ops         1   88,000        0   3,080  $0.0341  $0.0341
 search      2  147,000   24,000  10,220  $0.1921  $0.0961
-ops         1   88,000        0   3,100  $0.0341  $0.0341
-TOTAL       5  262,600  128,000  16,820  $0.5600
+TOTAL       5  262,600  128,000  16,800  $0.5062         
 ```
 
 Malformed lines are listed and skipped so one bad row cannot lose a month of

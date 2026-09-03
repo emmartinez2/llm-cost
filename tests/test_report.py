@@ -95,6 +95,89 @@ def test_compare_models_no_match_returns_empty():
     assert ranked == []
 
 
+def _readme_report_usage_log():
+    # Six records: two claude-opus-5 calls (team "agents"), one
+    # claude-haiku-4-5 and one gpt-4o-mini call (team "search"), one
+    # gemini-2.5-flash call (team "ops"), and one unpriced model.
+    return "\n".join(
+        [
+            '{"model": "claude-opus-5", "team": "agents", "usage": '
+            '{"input_tokens": 18400, "output_tokens": 2100, "cache_read_input_tokens": 52000}}',
+            '{"model": "claude-opus-5", "team": "agents", "usage": '
+            '{"input_tokens": 9200, "output_tokens": 1400, "cache_read_input_tokens": 52000, '
+            '"cache_creation_input_tokens": 400}}',
+            '{"model": "claude-haiku-4-5", "team": "search", "usage": '
+            '{"input_tokens": 140000, "output_tokens": 9800}}',
+            '{"model": "gpt-4o-mini", "team": "search", "usage": '
+            '{"prompt_tokens": 31000, "completion_tokens": 420, '
+            '"prompt_tokens_details": {"cached_tokens": 24000}}}',
+            '{"model": "gemini-2.5-flash", "team": "ops", "usage": '
+            '{"input_tokens": 88000, "output_tokens": 3080}}',
+            '{"model": "internal-router-v3", "team": "agents", "usage": '
+            '{"input_tokens": 1, "output_tokens": 1}}',
+        ]
+    )
+
+
+def _render_report_table(report):
+    rows = []
+    for group in report.groups:
+        per_call = group.total_cost / group.calls if group.calls else 0.0
+        rows.append(
+            (
+                group.key,
+                format_int(group.calls),
+                format_int(group.input_tokens),
+                format_int(group.cached_input_tokens),
+                format_int(group.output_tokens),
+                format_money(group.total_cost),
+                format_money(per_call),
+            )
+        )
+    rows.append(
+        (
+            "TOTAL",
+            format_int(report.total_calls),
+            format_int(sum(g.input_tokens for g in report.groups)),
+            format_int(sum(g.cached_input_tokens for g in report.groups)),
+            format_int(sum(g.output_tokens for g in report.groups)),
+            format_money(report.total_cost),
+            "",
+        )
+    )
+    return rows
+
+
+def test_report_matches_readme_group_by_model_example_byte_for_byte():
+    # Reproduces the exact table llm_cost.cli._cmd_report builds for
+    # `llm-cost report usage.jsonl --group-by model`, checked against the
+    # README's console example for that command.
+    records, problems = load_usage(_readme_report_usage_log())
+    report = build_report(records, default_pricing(), group_by="model", problems=problems)
+
+    headers = ("model", "calls", "input", "cached", "output", "cost", "$/call")
+    expected = render_table(headers, _render_report_table(report))
+
+    with open(README_PATH, encoding="utf-8") as handle:
+        readme = handle.read()
+    assert expected in readme
+
+
+def test_report_matches_readme_group_by_team_example_byte_for_byte():
+    # Reproduces the exact table llm_cost.cli._cmd_report builds for
+    # `llm-cost report usage.jsonl --group-by team`, checked against the
+    # README's console example for that command.
+    records, problems = load_usage(_readme_report_usage_log())
+    report = build_report(records, default_pricing(), group_by="team", problems=problems)
+
+    headers = ("team", "calls", "input", "cached", "output", "cost", "$/call")
+    expected = render_table(headers, _render_report_table(report))
+
+    with open(README_PATH, encoding="utf-8") as handle:
+        readme = handle.read()
+    assert expected in readme
+
+
 def test_compare_matches_readme_example_byte_for_byte():
     # Reproduces the exact block llm_cost.cli._cmd_compare prints for
     # `llm-cost compare --input 10000 --output 1000 --provider anthropic`,
